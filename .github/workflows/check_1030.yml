@@ -1,0 +1,31 @@
+name: 10時30分 サイト更新チェック（日本冷凍空調工事工業会）
+
+on:
+  schedule:
+    # 毎日10:30 JST (= 01:30 UTC)
+    - cron: '30 1 * * *'
+  workflow_dispatch:
+
+jobs:
+  check-jcma:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install requests beautifulsoup4
+
+      - name: キャッシュ復元（日本冷凍空調工事工業会）
+        uses: actions/cache@v4
+        with:
+          path: |
+            last_hash_jcma.txt
+            last_content_jcma.txt
+          key: site-data-jcma-${{ github.run_id }}
+          restore-keys: site-data-jcma-
+
+      - name: 日本冷凍空調工事工業会を確認
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python check_updates.py jcma
