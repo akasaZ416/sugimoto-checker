@@ -1,0 +1,54 @@
+name: 18時 サイト更新チェック（杉本商事・日冷工）
+
+on:
+  schedule:
+    # 毎日18:00 JST (= 09:00 UTC)
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+
+jobs:
+  check-sugimoto:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install requests beautifulsoup4
+
+      - name: キャッシュ復元（杉本商事）
+        uses: actions/cache@v4
+        with:
+          path: |
+            last_hash_sugimoto.txt
+            last_content_sugimoto.txt
+          key: site-data-sugimoto-${{ github.run_id }}
+          restore-keys: site-data-sugimoto-
+
+      - name: 杉本商事を確認
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python check_updates.py sugimoto
+
+  check-jraia:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install requests beautifulsoup4
+
+      - name: キャッシュ復元（日冷工）
+        uses: actions/cache@v4
+        with:
+          path: |
+            last_hash_jraia.txt
+            last_content_jraia.txt
+          key: site-data-jraia-${{ github.run_id }}
+          restore-keys: site-data-jraia-
+
+      - name: 日冷工を確認
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python check_updates.py jraia
