@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 from bs4 import BeautifulSoup
 
-URL = "https://www.e-sugimoto.co.jp/products/information/"
+URL = "https://investcheer.hatenablog.com/?_gl=1*4c5h2r*_gcl_au*MTIzNTk3MDMzMy4xNzM2OTQ2MTI5"
 HASH_FILE = "last_hash.txt"
 DISCORD_WEBHOOK = os.environ.get("DISCORD_WEBHOOK_URL")
 
