@@ -22,13 +22,15 @@ jobs:
       - name: 依存パッケージをインストール
         run: pip install requests beautifulsoup4
 
-      - name: 前回のハッシュを復元
+      - name: 前回のデータを復元
         uses: actions/cache@v4
         with:
-          path: last_hash.txt
-          key: site-hash-${{ github.run_id }}
+          path: |
+            last_hash.txt
+            last_content.txt
+          key: site-data-${{ github.run_id }}
           restore-keys: |
-            site-hash-
+            site-data-
 
       - name: サイトを確認
         env:
