@@ -78,7 +78,12 @@ def parse_table(html):
 
 
 def build_table_diff(old_json_str, new_json_str):
-    old = json.loads(old_json_str) if old_json_str else {}
+    try:
+        old = json.loads(old_json_str) if old_json_str else {}
+    except json.JSONDecodeError:
+        # 旧形式（テキスト）のキャッシュが残っている場合は空として扱う
+        print("⚠️ 前回のキャッシュが旧形式のため、初回扱いで全件を新規追加として表示します")
+        old = {}
     new = json.loads(new_json_str)
 
     added_keys = set(new.keys()) - set(old.keys())
