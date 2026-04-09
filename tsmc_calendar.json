@@ -1,0 +1,79 @@
+[
+  {
+    "date": "2026-04-16",
+    "type": "earnings",
+    "label": "TSMC 1Q'26 決算発表",
+    "time": "14:00（台湾時間）／15:00（日本時間）",
+    "url": "https://investor.tsmc.com/japanese/quarterly-results/2026/q1"
+  },
+  {
+    "date": "2026-05-08",
+    "type": "monthly",
+    "label": "TSMC 4月月次売上 発表",
+    "time": "発表時刻未定",
+    "url": "https://investor.tsmc.com/japanese/monthly-revenue/2026"
+  },
+  {
+    "date": "2026-06-10",
+    "type": "monthly",
+    "label": "TSMC 5月月次売上 発表",
+    "time": "発表時刻未定",
+    "url": "https://investor.tsmc.com/japanese/monthly-revenue/2026"
+  },
+  {
+    "date": "2026-07-09",
+    "type": "monthly",
+    "label": "TSMC 6月月次売上 発表",
+    "time": "発表時刻未定",
+    "url": "https://investor.tsmc.com/japanese/monthly-revenue/2026"
+  },
+  {
+    "date": "2026-07-16",
+    "type": "earnings",
+    "label": "TSMC 2Q'26 決算発表（予定）",
+    "time": "14:00（台湾時間）／15:00（日本時間）",
+    "url": "https://investor.tsmc.com/japanese/quarterly-results/2026/q2"
+  },
+  {
+    "date": "2026-08-07",
+    "type": "monthly",
+    "label": "TSMC 7月月次売上 発表",
+    "time": "発表時刻未定",
+    "url": "https://investor.tsmc.com/japanese/monthly-revenue/2026"
+  },
+  {
+    "date": "2026-09-09",
+    "type": "monthly",
+    "label": "TSMC 8月月次売上 発表",
+    "time": "発表時刻未定",
+    "url": "https://investor.tsmc.com/japanese/monthly-revenue/2026"
+  },
+  {
+    "date": "2026-10-08",
+    "type": "monthly",
+    "label": "TSMC 9月月次売上 発表",
+    "time": "発表時刻未定",
+    "url": "https://investor.tsmc.com/japanese/monthly-revenue/2026"
+  },
+  {
+    "date": "2026-10-15",
+    "type": "earnings",
+    "label": "TSMC 3Q'26 決算発表（予定）",
+    "time": "14:00（台湾時間）／15:00（日本時間）",
+    "url": "https://investor.tsmc.com/japanese/quarterly-results/2026/q3"
+  },
+  {
+    "date": "2026-11-09",
+    "type": "monthly",
+    "label": "TSMC 10月月次売上 発表",
+    "time": "発表時刻未定",
+    "url": "https://investor.tsmc.com/japanese/monthly-revenue/2026"
+  },
+  {
+    "date": "2026-12-09",
+    "type": "monthly",
+    "label": "TSMC 11月月次売上 発表",
+    "time": "発表時刻未定",
+    "url": "https://investor.tsmc.com/japanese/monthly-revenue/2026"
+  }
+]
