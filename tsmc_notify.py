@@ -111,7 +111,8 @@ def send_event_notification(events):
             "description": (
                 f"**{e['label']}**\n"
                 f"🕐 {e['time']}\n"
-                f"🔗 [IRページを確認する]({e['url']})"
+                f"🔗 [最新数値はこちら](https://pr.tsmc.com/japanese/latest-news)\n"
+                f"🔗 [過去数値はこちら]({e['url']})"
             ),
             "color": color,
             "footer": {"text": f"📅 {e['date']}  |  TSMC投資家向け情報"},
