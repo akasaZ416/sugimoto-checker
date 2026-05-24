@@ -1,0 +1,24 @@
+name: 8時30分 経済産業省生産動態統計調査 公表日通知
+
+on:
+  schedule:
+    # 毎日8:30 JST (= 23:30 UTC 前日)
+    - cron: '30 23 * * *'
+  workflow_dispatch:
+
+jobs:
+  meti-morning-alert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install requests
+
+      - name: 公表日チェック・通知
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python meti_morning_alert.py
