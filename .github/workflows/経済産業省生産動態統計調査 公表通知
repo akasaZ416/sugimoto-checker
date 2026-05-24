@@ -1,0 +1,25 @@
+name: 8時30分 経済産業省生産動態統計調査 公表通知
+
+on:
+  schedule:
+    # 毎日8:30 JST (= 23:30 UTC 前日)
+    - cron: '30 23 * * *'
+  workflow_dispatch:
+
+jobs:
+  meti-notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 依存パッケージをインストール
+        run: pip install requests pandas openpyxl beautifulsoup4
+
+      - name: 経済産業省生産動態統計調査 公表通知
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python meti_notify.py
