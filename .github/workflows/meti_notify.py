@@ -320,10 +320,17 @@ def main():
     today = date.today().isoformat()
     print(f"実行日: {today}")
 
-    pub_info = is_publication_day()
-    if not pub_info:
-        print("本日は公表日ではありません")
-        return
+    # テストモード：環境変数 METI_TEST=1 で公表日チェックをスキップ
+    test_mode = os.environ.get("METI_TEST") == "1"
+
+    if test_mode:
+        print("⚠️ テストモードで実行中（公表日チェックをスキップ）")
+        pub_info = [{"date": today, "time": "13:30（テスト）", "type": "速報", "month": "テスト月分"}]
+    else:
+        pub_info = is_publication_day()
+        if not pub_info:
+            print("本日は公表日ではありません")
+            return
 
     print(f"公表日を確認: {[p['type'] for p in pub_info]}")
 
