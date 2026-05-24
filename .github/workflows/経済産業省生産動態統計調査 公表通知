@@ -5,6 +5,15 @@ on:
     # 毎日8:30 JST (= 23:30 UTC 前日)
     - cron: '30 23 * * *'
   workflow_dispatch:
+    inputs:
+      test_mode:
+        description: 'テストモード（公表日チェックをスキップしてDiscordに送信）'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 jobs:
   meti-notify:
@@ -22,4 +31,5 @@ jobs:
       - name: 経済産業省生産動態統計調査 公表通知
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          METI_TEST: ${{ github.event.inputs.test_mode == 'true' && '1' || '0' }}
         run: python meti_notify.py
