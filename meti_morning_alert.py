@@ -15,31 +15,60 @@ HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; UpdateChecker/1.0)"}
 
 
 def check_publication_day():
-    today = date.today().isoformat()
+    """METI 公表予定 XML を取得し、今日が公表日のレコードを返す。
+
+    XML の実構造（os_code Ver.2.163）:
+      <e-stat><os_code name="...">
+        <class_1 name="2026年"><class_2 name="4月分"><class_3 name="速報">
+          <class_4 name=""><class_5 name="">
+            <release_year>2026</release_year><release_month>5</release_month>
+            <release_day>29</release_day>
+            <release_hour>8</release_hour><release_minute>50</release_minute>
+      → 日付は要素分割、種別(速報/確報)と月分(4月分)は class_N の name 属性に入る。
+        以前の「ISO 日付文字列を含むか」判定では永久にマッチしなかったため要素ベースに変更。
+      エンコーディングは UTF-16 宣言。requests の自動判定に頼らず明示デコードする。
+    """
+    today = date.today()
     try:
         r = requests.get(XML_URL, headers=HEADERS, timeout=20)
         r.raise_for_status()
-        root = ET.fromstring(r.text)
+        try:
+            text = r.content.decode("utf-16")
+        except UnicodeError:
+            text = r.text
+        root = ET.fromstring(text)
         results = []
-        for record in root:
-            all_text = " ".join((e.text or "") for e in record.iter() if e.text)
-            if today in all_text or today.replace("-", "/") in all_text:
-                time_val, type_val, month_val = "", "", ""
-                for e in record.iter():
-                    t = (e.text or "").strip()
-                    if len(t) == 5 and t[2] == ":" and t[:2].isdigit():
-                        time_val = t
-                    if "速報" in t and not type_val:
-                        type_val = "速報"
-                    elif "確報" in t and not type_val:
-                        type_val = "確報"
-                    if ("月分" in t or "月期" in t) and not month_val:
-                        month_val = t
-                results.append({
-                    "time": time_val or "時刻未定",
-                    "type": type_val or "公表",
-                    "month": month_val,
-                })
+
+        def walk(node, month_val, type_val):
+            name = (node.get("name") or "").strip()
+            if node.tag == "class_2" and name:
+                month_val = name
+            if node.tag == "class_3" and name:
+                type_val = name
+            ry, rm, rd = (node.findtext("release_year"),
+                          node.findtext("release_month"),
+                          node.findtext("release_day"))
+            if ry and rm and rd:
+                try:
+                    is_today = (int(ry), int(rm), int(rd)) == (today.year, today.month, today.day)
+                except ValueError:
+                    is_today = False
+                if is_today:
+                    h = (node.findtext("release_hour") or "").strip()
+                    mi = (node.findtext("release_minute") or "").strip()
+                    if h.isdigit() and mi.isdigit():
+                        time_val = f"{int(h)}:{int(mi):02d}"
+                    else:
+                        time_val = "時刻未定"
+                    results.append({
+                        "time": time_val,
+                        "type": type_val or "公表",
+                        "month": month_val,
+                    })
+            for ch in node:
+                walk(ch, month_val, type_val)
+
+        walk(root, "", "")
         return results
     except Exception as e:
         print(f"XML取得エラー: {e}")
