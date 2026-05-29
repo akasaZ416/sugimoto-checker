@@ -6,7 +6,18 @@ meti_morning_alert.py
 import os
 import requests
 import xml.etree.ElementTree as ET
-from datetime import date
+from datetime import datetime, timezone, timedelta
+
+# METI の公表日は JST の暦日。GitHub Actions ランナーは UTC で動くため、
+# date.today()(=UTC) を使うと公表前夜(JST朝=UTC前日)に「前日」と判定されマッチしない。
+# 従来は GitHub のスケジュール遅延で UTC 日付がたまたま繰り上がって動いていただけなので、
+# 必ず JST で today を取って堅牢化する。
+JST = timezone(timedelta(hours=9))
+
+
+def _today_jst():
+    return datetime.now(JST).date()
+
 
 DISCORD_WEBHOOK = os.environ.get("DISCORD_WEBHOOK_URL")
 XML_URL = "https://www.meti.go.jp/statistics/tyo/seidou/yotei/xml/e-stat_seidou.xml"
@@ -15,7 +26,7 @@ HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; UpdateChecker/1.0)"}
 
 
 def check_publication_day():
-    """METI 公表予定 XML を取得し、今日が公表日のレコードを返す。
+    """METI 公表予定 XML を取得し、今日(JST)が公表日のレコードを返す。
 
     XML の実構造（os_code Ver.2.163）:
       <e-stat><os_code name="...">
@@ -28,7 +39,7 @@ def check_publication_day():
         以前の「ISO 日付文字列を含むか」判定では永久にマッチしなかったため要素ベースに変更。
       エンコーディングは UTF-16 宣言。requests の自動判定に頼らず明示デコードする。
     """
-    today = date.today()
+    today = _today_jst()
     try:
         r = requests.get(XML_URL, headers=HEADERS, timeout=20)
         r.raise_for_status()
@@ -76,7 +87,7 @@ def check_publication_day():
 
 
 def send_discord(events):
-    today = date.today().isoformat()
+    today = _today_jst().isoformat()
     embeds = []
     for e in events:
         month_str = f"（{e['month']}）" if e["month"] else ""
@@ -101,8 +112,8 @@ def main():
         print("ERROR: DISCORD_WEBHOOK_URL が設定されていません")
         exit(1)
 
-    today = date.today().isoformat()
-    print(f"実行日: {today}")
+    today = _today_jst().isoformat()
+    print(f"実行日(JST): {today}")
 
     events = check_publication_day()
     if events:
