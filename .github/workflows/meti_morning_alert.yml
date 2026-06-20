@@ -2,9 +2,13 @@ name: 8時30分 経済産業省生産動態統計調査 公表日通知
 
 on:
   schedule:
-    # 毎日8:30 JST (= 23:30 UTC 前日)
+    # 毎日8:30 JST (= 23:30 UTC 前日)。GitHub のスケジュール遅延で実際は ~10時台に走る。
     - cron: '30 23 * * *'
   workflow_dispatch:
+
+# 公表予定スケジュール(meti_schedule.json)を取得成功時に自動コミットするため書き込み権限が要る。
+permissions:
+  contents: write
 
 jobs:
   meti-morning-alert:
@@ -22,3 +26,15 @@ jobs:
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: python meti_morning_alert.py
+
+      - name: スケジュール自動更新を反映（METI取得に成功し差分が出た時のみ）
+        run: |
+          if ! git diff --quiet -- meti_schedule.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add meti_schedule.json
+            git commit -m "chore: 生産動態統計 公表予定スケジュール自動更新"
+            git push
+          else
+            echo "スケジュール変更なし"
+          fi
