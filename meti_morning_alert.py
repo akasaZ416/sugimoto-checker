@@ -30,12 +30,22 @@ def _today_jst():
 DISCORD_WEBHOOK = os.environ.get("DISCORD_WEBHOOK_URL")
 XML_URL = "https://www.meti.go.jp/statistics/tyo/seidou/yotei/xml/e-stat_seidou.xml"
 RESULT_PAGE_URL = "https://www.meti.go.jp/statistics/tyo/seidou/result/ichiran/08_seidou.html"
-HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; UpdateChecker/1.0)"}
+# METI は素っ気ない UA を時々絞るらしく、海外IP(GitHub Actionsランナー)からは特に遅い。
+# 実ブラウザ相当の UA とヘッダを送って通りやすくする。
+HEADERS = {
+    "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                   "AppleWebKit/537.36 (KHTML, like Gecko) "
+                   "Chrome/124.0.0.0 Safari/537.36"),
+    "Accept": "application/xml,text/xml,*/*;q=0.8",
+    "Accept-Language": "ja,en-US;q=0.7,en;q=0.3",
+}
 
-# XML取得のリトライ設定。METIサーバは時々遅いので、1回タイムアウトしても諦めない。
-FETCH_TIMEOUT = 30   # 秒（旧20秒だと確報日にタイムアウトして取りこぼした）
-FETCH_RETRIES = 3    # 最大試行回数
-FETCH_BACKOFF = 5    # 秒（試行ごとに 5, 10 秒と待つ）
+# XML取得のリトライ設定。GitHub の海外ランナーからは METI が読み取りタイムアウトしやすい
+# （2026-06-12 の4月分確報がこれで通知ゼロだった）。タイムアウトを長く取り、
+# 試行間隔も広げて、サーバの一時的な高負荷を数分かけてやり過ごす。
+FETCH_TIMEOUT = (15, 60)  # (接続, 読み取り) 秒。読み取りを長めに。
+FETCH_RETRIES = 5         # 最大試行回数
+FETCH_BACKOFF = 10        # 秒（試行ごとに 10,20,30,40 秒と待ち、計~100秒粘る）
 
 
 def fetch_schedule_xml():
