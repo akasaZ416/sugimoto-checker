@@ -1,9 +1,17 @@
 """
 meti_morning_alert.py
 毎朝8:30に実行。
-公表予定XMLを確認して、今日が公表日であればDiscordに通知する。
+公表予定XMLを確認して、今日(JST)が公表日であればDiscordに通知する。
+速報・確報の区別なく、公表予定日が今日のレコードを全て通知する。
+
+信頼性:
+  XML取得が一時的にタイムアウト/失敗すると、以前は結果が空になり「公表日ではない」と
+  誤判定して通知を取りこぼしていた（2026-06-12 の4月分確報がこれで通知ゼロだった）。
+  対策として (1) 取得をリトライ＋タイムアウト延長、(2) 全リトライ失敗時は
+  「公表日ではない」とせず Discord にエラー通知を出す（手動確認を促す）。
 """
 import os
+import time
 import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone, timedelta
@@ -24,6 +32,35 @@ XML_URL = "https://www.meti.go.jp/statistics/tyo/seidou/yotei/xml/e-stat_seidou.
 RESULT_PAGE_URL = "https://www.meti.go.jp/statistics/tyo/seidou/result/ichiran/08_seidou.html"
 HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; UpdateChecker/1.0)"}
 
+# XML取得のリトライ設定。METIサーバは時々遅いので、1回タイムアウトしても諦めない。
+FETCH_TIMEOUT = 30   # 秒（旧20秒だと確報日にタイムアウトして取りこぼした）
+FETCH_RETRIES = 3    # 最大試行回数
+FETCH_BACKOFF = 5    # 秒（試行ごとに 5, 10 秒と待つ）
+
+
+def fetch_schedule_xml():
+    """公表予定XMLを取得してテキストを返す。一時的な障害に備えてリトライする。
+
+    全リトライに失敗した場合は例外を送出する（呼び出し側で「公表日ではない」と
+    誤判定させず、エラー通知に倒すため）。
+    エンコーディングは UTF-16 宣言。requests の自動判定に頼らず明示デコードする。
+    """
+    last_err = None
+    for attempt in range(1, FETCH_RETRIES + 1):
+        try:
+            r = requests.get(XML_URL, headers=HEADERS, timeout=FETCH_TIMEOUT)
+            r.raise_for_status()
+            try:
+                return r.content.decode("utf-16")
+            except UnicodeError:
+                return r.text
+        except Exception as e:
+            last_err = e
+            print(f"XML取得失敗 (試行 {attempt}/{FETCH_RETRIES}): {e}")
+            if attempt < FETCH_RETRIES:
+                time.sleep(FETCH_BACKOFF * attempt)
+    raise RuntimeError(f"XML取得に{FETCH_RETRIES}回失敗しました: {last_err}")
+
 
 def check_publication_day():
     """METI 公表予定 XML を取得し、今日(JST)が公表日のレコードを返す。
@@ -37,53 +74,45 @@ def check_publication_day():
             <release_hour>8</release_hour><release_minute>50</release_minute>
       → 日付は要素分割、種別(速報/確報)と月分(4月分)は class_N の name 属性に入る。
         以前の「ISO 日付文字列を含むか」判定では永久にマッチしなかったため要素ベースに変更。
-      エンコーディングは UTF-16 宣言。requests の自動判定に頼らず明示デコードする。
+
+    取得エラーはここでは握りつぶさず、呼び出し側に伝播させる（サイレント取りこぼし防止）。
     """
     today = _today_jst()
-    try:
-        r = requests.get(XML_URL, headers=HEADERS, timeout=20)
-        r.raise_for_status()
-        try:
-            text = r.content.decode("utf-16")
-        except UnicodeError:
-            text = r.text
-        root = ET.fromstring(text)
-        results = []
+    text = fetch_schedule_xml()
+    root = ET.fromstring(text)
+    results = []
 
-        def walk(node, month_val, type_val):
-            name = (node.get("name") or "").strip()
-            if node.tag == "class_2" and name:
-                month_val = name
-            if node.tag == "class_3" and name:
-                type_val = name
-            ry, rm, rd = (node.findtext("release_year"),
-                          node.findtext("release_month"),
-                          node.findtext("release_day"))
-            if ry and rm and rd:
-                try:
-                    is_today = (int(ry), int(rm), int(rd)) == (today.year, today.month, today.day)
-                except ValueError:
-                    is_today = False
-                if is_today:
-                    h = (node.findtext("release_hour") or "").strip()
-                    mi = (node.findtext("release_minute") or "").strip()
-                    if h.isdigit() and mi.isdigit():
-                        time_val = f"{int(h)}:{int(mi):02d}"
-                    else:
-                        time_val = "時刻未定"
-                    results.append({
-                        "time": time_val,
-                        "type": type_val or "公表",
-                        "month": month_val,
-                    })
-            for ch in node:
-                walk(ch, month_val, type_val)
+    def walk(node, month_val, type_val):
+        name = (node.get("name") or "").strip()
+        if node.tag == "class_2" and name:
+            month_val = name
+        if node.tag == "class_3" and name:
+            type_val = name
+        ry, rm, rd = (node.findtext("release_year"),
+                      node.findtext("release_month"),
+                      node.findtext("release_day"))
+        if ry and rm and rd:
+            try:
+                is_today = (int(ry), int(rm), int(rd)) == (today.year, today.month, today.day)
+            except ValueError:
+                is_today = False
+            if is_today:
+                h = (node.findtext("release_hour") or "").strip()
+                mi = (node.findtext("release_minute") or "").strip()
+                if h.isdigit() and mi.isdigit():
+                    time_val = f"{int(h)}:{int(mi):02d}"
+                else:
+                    time_val = "時刻未定"
+                results.append({
+                    "time": time_val,
+                    "type": type_val or "公表",
+                    "month": month_val,
+                })
+        for ch in node:
+            walk(ch, month_val, type_val)
 
-        walk(root, "", "")
-        return results
-    except Exception as e:
-        print(f"XML取得エラー: {e}")
-        return []
+    walk(root, "", "")
+    return results
 
 
 def send_discord(events):
@@ -107,6 +136,31 @@ def send_discord(events):
     print(f"Discord通知を送信しました（{len(embeds)}件）")
 
 
+def send_fetch_error(err):
+    """XML取得に失敗したときの通知。沈黙して公表日を取りこぼすより、
+    手動確認を促す方が安全。"""
+    if not DISCORD_WEBHOOK:
+        return
+    today = _today_jst().isoformat()
+    payload = {"embeds": [{
+        "title": "⚠️ 生産動態統計 公表予定の自動確認に失敗しました",
+        "description": (
+            "公表予定XMLの取得に失敗したため、本日が公表日かどうか判定できませんでした。\n"
+            "**確報の公表日を取りこぼしている可能性があります。** お手数ですが手動でご確認ください。\n\n"
+            f"🔗 [公表ページ]({RESULT_PAGE_URL}#menu1)\n\n"
+            f"```{str(err)[:300]}```"
+        ),
+        "color": 0xCC3300,
+        "footer": {"text": f"📅 {today}  |  経済産業省生産動態統計調査（自動確認エラー）"},
+    }]}
+    try:
+        r = requests.post(DISCORD_WEBHOOK, json=payload, timeout=10)
+        r.raise_for_status()
+        print("取得失敗のエラー通知を送信しました")
+    except Exception as e:
+        print(f"エラー通知の送信にも失敗: {e}")
+
+
 def main():
     if not DISCORD_WEBHOOK:
         print("ERROR: DISCORD_WEBHOOK_URL が設定されていません")
@@ -115,7 +169,14 @@ def main():
     today = _today_jst().isoformat()
     print(f"実行日(JST): {today}")
 
-    events = check_publication_day()
+    try:
+        events = check_publication_day()
+    except Exception as e:
+        # 取得失敗を「公表日ではない」と誤判定しない。取りこぼし防止のため通知を出す。
+        print(f"公表日チェックに失敗: {e}")
+        send_fetch_error(e)
+        exit(1)
+
     if events:
         print(f"本日は公表日です: {[e['type'] for e in events]}")
         send_discord(events)
